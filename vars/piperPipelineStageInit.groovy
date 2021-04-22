@@ -45,6 +45,10 @@ import static com.sap.piper.Prerequisites.checkScript
     /**
      * Defines the library resource containing stage/step initialization settings. Those define conditions when certain steps/stages will be activated. **Caution: changing the default will break the standard behavior of the pipeline - thus only relevant when including `Init` stage into custom pipelines!**
      */
+    'runOnPod',
+    /**
+     *  set boolean to execute artifact versioning in a kubernetes pod.
+     */
     'stageConfigResource',
     /**
      * Defines the library resource containing the stash settings to be performed before and after each stage. **Caution: changing the default will break the standard behavior of the pipeline - thus only relevant when including `Init` stage into custom pipelines!**
@@ -202,12 +206,14 @@ void call(Map parameters = [:]) {
                 prepareVersionParams.buildTool = buildTool
             }
             if (env.ON_K8S) {
-                // We force dockerImage: "" for the K8S case to avoid the execution of artifactPrepareVersion in a K8S Pod.
-                // Since artifactPrepareVersion may need the ".git" folder in order to push a tag, it would need to be part of the stashing.
-                // There are however problems with tar-ing this folder, which results in a failure to copy the stash back -- without a failure of the pipeline.
-                // This then also has the effect that any changes made to the build descriptors by the step (updated version) are not visible in the relevant stashes.
-                // In addition, a mvn executable is available on the Jenkins instance which can be used directly instead of executing the command in a container.
-                prepareVersionParams.dockerImage = ""
+                if(!config.runOnPod){
+                    // We force dockerImage: "" for the K8S case to avoid the execution of artifactPrepareVersion in a K8S Pod.
+                    // Since artifactPrepareVersion may need the ".git" folder in order to push a tag, it would need to be part of the stashing.
+                    // There are however problems with tar-ing this folder, which results in a failure to copy the stash back -- without a failure of the pipeline.
+                    // This then also has the effect that any changes made to the build descriptors by the step (updated version) are not visible in the relevant stashes.
+                    // In addition, a mvn executable is available on the Jenkins instance which can be used directly instead of executing the command in a container.
+                    prepareVersionParams.dockerImage = ""
+                }
             }
             artifactPrepareVersion prepareVersionParams
         }
